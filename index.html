@@ -72,6 +72,11 @@ button {
 const picker = document.getElementById("imagePicker");
 const preview = document.getElementById("preview");
 const statusText = document.getElementById("status");
+  window.showPickedImage = function(dataUrl) {
+  preview.src = dataUrl;
+  preview.style.display = "block";
+  statusText.textContent = "ছবি সফলভাবে নির্বাচন হয়েছে";
+};
 let drawingCount = 0;
 
 picker.addEventListener("change", function() {
