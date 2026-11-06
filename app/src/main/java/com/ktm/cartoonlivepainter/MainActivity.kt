@@ -1,4 +1,3 @@
-
 package com.ktm.cartoonlivepainter
 
 import android.app.Activity
