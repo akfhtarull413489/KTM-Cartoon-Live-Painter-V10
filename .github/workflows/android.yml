@@ -30,6 +30,11 @@ jobs:
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
+      - name: Copy HTML to Android assets
+        run: |
+          mkdir -p app/src/main/assets
+          cp index.html app/src/main/assets/index.html
+
       - name: Build APK
         run: gradle assembleDebug
 
