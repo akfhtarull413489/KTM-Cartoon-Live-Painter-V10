@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KTM Cartoon LIVE Painter</title>
+<style>
+body {
+  margin: 0;
+  padding: 18px;
+  background: #101525;
+  color: white;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+h1 { color: #ffcc00; }
+.panel {
+  background: #202b42;
+  padding: 18px;
+  border-radius: 14px;
+  margin: 15px 0;
+}
+button, input {
+  margin: 9px 0;
+  padding: 13px;
+  border-radius: 9px;
+  border: 0;
+  font-size: 16px;
+}
+button {
+  background: #ffcc00;
+  color: #111;
+  font-weight: bold;
+}
+#preview {
+  max-width: 100%;
+  max-height: 300px;
+  display: none;
+  margin: 15px auto;
+  border-radius: 12px;
+}
+#status { color: #7cff9b; }
+</style>
+</head>
+<body>
+
+<h1>🕶️ KTM ESPORTS</h1>
+<h2>KTM Cartoon LIVE Painter V10</h2>
+
+<div class="panel">
+  <h3>Viewer Wall</h3>
+  <input id="viewerName" placeholder="Viewer Name">
+  <br>
+  <input id="imagePicker" type="file" accept="image/*">
+  <img id="preview" alt="Selected image">
+  <p id="status">শিল্পী প্রস্তুত</p>
+</div>
+
+<div class="panel">
+  <button onclick="draw(1)">Follow</button>
+  <button onclick="draw(3)">Gift x3</button>
+  <button onclick="clearWall()">Clear Wall</button>
+</div>
+
+<div class="panel">
+  <h3>Drawing Animation</h3>
+  <div id="drawing">🎨</div>
+  <p id="count">Drawing: 0</p>
+</div>
+
+<script>
+const picker = document.getElementById("imagePicker");
+const preview = document.getElementById("preview");
+const statusText = document.getElementById("status");
+  window.showPickedImage = function(dataUrl) {
+  preview.src = dataUrl;
+  preview.style.display = "block";
+  statusText.textContent = "ছবি সফলভাবে নির্বাচন হয়েছে";
+};
+let drawingCount = 0;
+
+picker.addEventListener("change", function() {
+  const file = this.files && this.files[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    statusText.textContent = "একটি ছবি নির্বাচন করুন";
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(event) {
+    preview.src = event.target.result;
+    preview.style.display = "block";
+    statusText.textContent = "ছবি সফলভাবে নির্বাচন হয়েছে";
+  };
+
+  reader.onerror = function() {
+    statusText.textContent = "ছবি পড়তে সমস্যা হয়েছে";
+  };
+
+  reader.readAsDataURL(file);
+});
+
+function draw(times) {
+  if (!preview.src || preview.style.display === "none") {
+    statusText.textContent = "আগে একটি ছবি নির্বাচন করুন";
+    return;
+  }
+
+  drawingCount += times;
+  document.getElementById("count").textContent =
+    "Drawing: " + drawingCount;
+
+  statusText.textContent =
+    times === 3 ? "Gift: ৩ বার আঁকার নির্দেশ" :
+    "Follow: ১ বার আঁকার নির্দেশ";
+}
+
+function clearWall() {
+  preview.removeAttribute("src");
+  preview.style.display = "none";
+  picker.value = "";
+  drawingCount = 0;
+  document.getElementById("count").textContent = "Drawing: 0";
+  statusText.textContent = "শিল্পী প্রস্তুত";
+}
+</script>
+
+</body>
+</html>
