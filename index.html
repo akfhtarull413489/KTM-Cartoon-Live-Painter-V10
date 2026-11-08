@@ -3,131 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KTM Cartoon LIVE Painter</title>
+<title>KTM ESPORTS 3D LIVE Painter</title>
 <style>
-body {
-  margin: 0;
-  padding: 18px;
-  background: #101525;
-  color: white;
-  font-family: Arial, sans-serif;
-  text-align: center;
-}
-h1 { color: #ffcc00; }
-.panel {
-  background: #202b42;
-  padding: 18px;
-  border-radius: 14px;
-  margin: 15px 0;
-}
-button, input {
-  margin: 9px 0;
-  padding: 13px;
-  border-radius: 9px;
-  border: 0;
-  font-size: 16px;
-}
-button {
-  background: #ffcc00;
-  color: #111;
-  font-weight: bold;
-}
-#preview {
-  max-width: 100%;
-  max-height: 300px;
-  display: none;
-  margin: 15px auto;
-  border-radius: 12px;
-}
-#status { color: #7cff9b; }
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:#101525;color:white;font-family:Arial;text-align:center}
+h1{color:#ffcc00}
+.panel{background:#202b42;padding:15px;border-radius:14px;margin:14px 0}
+#viewer{height:360px;background:#111827;border-radius:12px;overflow:hidden}
+#viewer canvas{width:100%;height:100%;display:block}
+button,input{margin:8px 3px;padding:12px;border:0;border-radius:9px;font-size:15px}
+button{background:#ffcc00;color:#111;font-weight:bold}
+#preview{max-width:100%;max-height:180px;display:none;margin:auto}
+#status{color:#7cff9b}
 </style>
 </head>
 <body>
-
 <h1>🕶️ KTM ESPORTS</h1>
 <h2>KTM Cartoon LIVE Painter V10</h2>
 
 <div class="panel">
-  <h3>Viewer Wall</h3>
-  <input id="viewerName" placeholder="Viewer Name">
-  <br>
-  <input id="imagePicker" type="file" accept="image/*">
-  <img id="preview" alt="Selected image">
-  <p id="status">শিল্পী প্রস্তুত</p>
+<h3>3D KTM Artist</h3>
+<div id="viewer"></div>
+<p id="modelStatus">3D মডেল লোড হচ্ছে...</p>
 </div>
 
 <div class="panel">
-  <button onclick="draw(1)">Follow</button>
-  <button onclick="draw(3)">Gift x3</button>
-  <button onclick="clearWall()">Clear Wall</button>
+<h3>Viewer Wall</h3>
+<input id="viewerName" placeholder="Viewer Name">
+<br>
+<input id="imagePicker" type="file" accept="image/*">
+<img id="preview" alt="Selected image">
+<p id="status">শিল্পী প্রস্তুত</p>
 </div>
 
 <div class="panel">
-  <h3>Drawing Animation</h3>
-  <div id="drawing">🎨</div>
-  <p id="count">Drawing: 0</p>
+<button onclick="draw(1)">Follow</button>
+<button onclick="draw(3)">Gift x3</button>
+<button onclick="clearWall()">Clear Wall</button>
 </div>
 
-<script>
-const picker = document.getElementById("imagePicker");
-const preview = document.getElementById("preview");
-const statusText = document.getElementById("status");
-  window.showPickedImage = function(dataUrl) {
-  preview.src = dataUrl;
-  preview.style.display = "block";
-  statusText.textContent = "ছবি সফলভাবে নির্বাচন হয়েছে";
-};
-let drawingCount = 0;
+<div class="panel">
+<h3>Drawing Animation</h3>
+<div id="drawing">🎨</div>
+<p id="count">Drawing: 0</p>
+</div>
 
-picker.addEventListener("change", function() {
-  const file = this.files && this.files[0];
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
 
-  if (!file) return;
+const box=document.getElementById('viewer');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x111827);
 
-  if (!file.type.startsWith("image/")) {
-    statusText.textContent = "একটি ছবি নির্বাচন করুন";
-    return;
-  }
+const camera=new THREE.PerspectiveCamera(40,box.clientWidth/box.clientHeight,0.1,100);
+camera.position.set(0,1.5,4);
 
-  const reader = new FileReader();
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(box.clientWidth,box.clientHeight);
+box.appendChild(renderer.domElement);
 
-  reader.onload = function(event) {
-    preview.src = event.target.result;
-    preview.style.display = "block";
-    statusText.textContent = "ছবি সফলভাবে নির্বাচন হয়েছে";
-  };
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,2));
+const light=new THREE.DirectionalLight(0xffffff,2);
+light.position.set(3,5,4);
+scene.add(light);
 
-  reader.onerror = function() {
-    statusText.textContent = "ছবি পড়তে সমস্যা হয়েছে";
-  };
-
-  reader.readAsDataURL(file);
+const loader=new GLTFLoader();
+loader.load('ktm_artist.glb',gltf=>{
+ const model=gltf.scene;
+ const b=new THREE.Box3().setFromObject(model);
+ const size=b.getSize(new THREE.Vector3());
+ const center=b.getCenter(new THREE.Vector3());
+ model.position.sub(center);
+ const max=Math.max(size.x,size.y,size.z);
+ model.scale.setScalar(2.5/max);
+ scene.add(model);
+ document.getElementById('modelStatus').textContent='3D KTM Artist প্রস্তুত!';
+},undefined,error=>{
+ document.getElementById('modelStatus').textContent='মডেল লোড হয়নি: '+error.message;
 });
 
-function draw(times) {
-  if (!preview.src || preview.style.display === "none") {
-    statusText.textContent = "আগে একটি ছবি নির্বাচন করুন";
-    return;
-  }
-
-  drawingCount += times;
-  document.getElementById("count").textContent =
-    "Drawing: " + drawingCount;
-
-  statusText.textContent =
-    times === 3 ? "Gift: ৩ বার আঁকার নির্দেশ" :
-    "Follow: ১ বার আঁকার নির্দেশ";
+function animate(){
+ requestAnimationFrame(animate);
+ renderer.render(scene,camera);
 }
+animate();
 
-function clearWall() {
-  preview.removeAttribute("src");
-  preview.style.display = "none";
-  picker.value = "";
-  drawingCount = 0;
-  document.getElementById("count").textContent = "Drawing: 0";
-  statusText.textContent = "শিল্পী প্রস্তুত";
-}
+window.addEventListener('resize',()=>{
+ const w=box.clientWidth,h=box.clientHeight;
+ camera.aspect=w/h;
+ camera.updateProjectionMatrix();
+ renderer.setSize(w,h);
+});
 </script>
 
+<script>
+const picker=document.getElementById('imagePicker');
+const preview=document.getElementById('preview');
+const statusText=document.getElementById('status');
+let drawingCount=0;
+
+picker.addEventListener('change',function(){
+ const file=this.files&&this.files[0];
+ if(!file)return;
+ const reader=new FileReader();
+ reader.onload=e=>{
+  preview.src=e.target.result;
+  preview.style.display='block';
+  statusText.textContent='ছবি সফলভাবে নির্বাচন হয়েছে';
+ };
+ reader.readAsDataURL(file);
+});
+
+function draw(times){
+ if(!preview.src||preview.style.display==='none'){
+  statusText.textContent='আগে একটি ছবি নির্বাচন করুন';
+  return;
+ }
+ drawingCount+=times;
+ document.getElementById('count').textContent='Drawing: '+drawingCount;
+ statusText.textContent=times===3?'Gift: ৩ বার আঁকার নির্দেশ':'Follow: ১ বার আঁকার নির্দেশ';
+ document.getElementById('drawing').textContent='🎨 ✏️';
+}
+
+function clearWall(){
+ preview.removeAttribute('src');
+ preview.style.display='none';
+ picker.value='';
+ drawingCount=0;
+ document.getElementById('count').textContent='Drawing: 0';
+ statusText.textContent='শিল্পী প্রস্তুত';
+}
+</script>
 </body>
 </html>

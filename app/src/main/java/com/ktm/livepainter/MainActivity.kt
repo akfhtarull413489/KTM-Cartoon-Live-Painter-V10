@@ -8,10 +8,11 @@ import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.view.ViewGroup
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : Activity() {
-
     private lateinit var webView: WebView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
 
@@ -19,21 +20,32 @@ class MainActivity : Activity() {
         private const val FILE_PICKER_REQUEST = 1001
     }
 
-    @Suppress("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        webView = WebView(this)
-        webView.layoutParams = ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        )
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler(
+                "/assets/",
+                WebViewAssetLoader.AssetsPathHandler(this)
+            )
+            .build()
 
+        webView = WebView(this)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
-        webView.settings.allowFileAccess = true
+        webView.settings.allowFileAccess = false
+        webView.settings.allowContentAccess = true
 
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                return request?.url?.let {
+                    assetLoader.shouldInterceptRequest(it)
+                }
+            }
+        }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
@@ -41,7 +53,6 @@ class MainActivity : Activity() {
                 callback: ValueCallback<Array<Uri>>?,
                 params: FileChooserParams?
             ): Boolean {
-
                 fileCallback?.onReceiveValue(null)
                 fileCallback = callback
 
@@ -56,7 +67,9 @@ class MainActivity : Activity() {
         }
 
         setContentView(webView)
-        webView.loadUrl("file:///android_asset/index.html")
+        webView.loadUrl(
+            "https://appassets.androidplatform.net/assets/index.html"
+        )
     }
 
     @Deprecated("Deprecated in Java")
