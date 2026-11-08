@@ -76,10 +76,24 @@ loader.load('ktm_artist.glb',gltf=>{
  const b=new THREE.Box3().setFromObject(model);
  const size=b.getSize(new THREE.Vector3());
  const center=b.getCenter(new THREE.Vector3());
+
  model.position.sub(center);
- const max=Math.max(size.x,size.y,size.z);
- model.scale.setScalar(2.5/max);
+ model.scale.setScalar(2.0/Math.max(size.y,0.001));
  scene.add(model);
+
+ const fittedBox=new THREE.Box3().setFromObject(model);
+ const sphere=fittedBox.getBoundingSphere(new THREE.Sphere());
+ const vFov=THREE.MathUtils.degToRad(camera.fov);
+ const hFov=2*Math.atan(Math.tan(vFov/2)*camera.aspect);
+ const halfFov=Math.min(vFov,hFov)/2;
+ const distance=sphere.radius/Math.sin(halfFov)*1.35;
+
+ camera.position.set(sphere.center.x,sphere.center.y,sphere.center.z+distance);
+ camera.lookAt(sphere.center);
+ camera.near=0.01;
+ camera.far=Math.max(100,distance*10);
+ camera.updateProjectionMatrix();
+
  document.getElementById('modelStatus').textContent='3D KTM Artist প্রস্তুত!';
 },undefined,error=>{
  document.getElementById('modelStatus').textContent='মডেল লোড হয়নি: '+error.message;
