@@ -57,6 +57,177 @@ const box=document.getElementById('viewer');
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x111827);
 
+// KTM LIVE PAINTING WALL
+const wallGeometry=new THREE.PlaneGeometry(5,3.2);
+const wallMaterial=new THREE.MeshStandardMaterial({
+ color:0xffffff,
+ roughness:0.95,
+ side:THREE.DoubleSide
+});
+const paintingWall=new THREE.Mesh(wallGeometry,wallMaterial);
+paintingWall.position.set(0,0,-1.3);
+scene.add(paintingWall);
+window.paintingWall=paintingWall;
+
+// KTM 3D PAINT BRUSH
+const ktmBrush = new THREE.Group();
+const brushHandle = new THREE.Mesh(
+ new THREE.CylinderGeometry(0.035,0.045,0.65,12),
+ new THREE.MeshStandardMaterial({color:0x8b4513,roughness:0.7})
+);
+brushHandle.rotation.z = -Math.PI/2;
+brushHandle.position.x = 0.32;
+ktmBrush.add(brushHandle);
+
+const brushTip = new THREE.Mesh(
+ new THREE.ConeGeometry(0.065,0.22,12),
+ new THREE.MeshStandardMaterial({color:0x222222})
+);
+brushTip.rotation.z = -Math.PI/2;
+brushTip.position.x = -0.08;
+ktmBrush.add(brushTip);
+
+ktmBrush.position.set(0.3,-1.0,-1.16);
+ktmBrush.visible = false;
+scene.add(ktmBrush);
+
+let brushStart = 0;
+let brushPasses = 0;
+window.ktmBrush = ktmBrush;
+
+window.playBrushAnimation = function(times){
+ brushStart = performance.now();
+ brushPasses = times;
+ ktmBrush.visible = true;
+};
+
+
+window.paintCanvas=document.createElement('canvas');
+paintCanvas.width=1024;
+paintCanvas.height=640;
+const paintCtx=paintCanvas.getContext('2d');
+const wallTexture=new THREE.CanvasTexture(paintCanvas);
+wallTexture.colorSpace=THREE.SRGBColorSpace;
+wallMaterial.map=wallTexture;
+wallMaterial.color.set(0xffffff);
+wallMaterial.needsUpdate=true;
+
+function paintWallBase(name){
+ paintCtx.fillStyle='#f4f4f4';
+ paintCtx.fillRect(0,0,1024,640);
+ paintCtx.fillStyle='#111827';
+ paintCtx.font='bold 38px sans-serif';
+ paintCtx.textAlign='center';
+ paintCtx.fillText(name || 'KTM LIVE WALL',512,600);
+ wallTexture.needsUpdate=true;
+}
+paintWallBase('KTM LIVE PAINTING WALL');
+
+
+window.paintViewerOnWall=function(dataURL,name,times){
+ const img=new Image();
+
+ img.onload=function(){
+  const artCanvas=document.createElement('canvas');
+  artCanvas.width=1024;
+  artCanvas.height=640;
+  const artCtx=artCanvas.getContext('2d');
+
+  const maskCanvas=document.createElement('canvas');
+  maskCanvas.width=1024;
+  maskCanvas.height=640;
+  const maskCtx=maskCanvas.getContext('2d');
+
+  const revealCanvas=document.createElement('canvas');
+  revealCanvas.width=1024;
+  revealCanvas.height=640;
+  const revealCtx=revealCanvas.getContext('2d');
+
+  const maxW=430,maxH=440;
+  const scale=Math.min(maxW/img.width,maxH/img.height);
+  const w=img.width*scale,h=img.height*scale;
+  const x=560+(430-w)/2;
+  const y=45+(maxH-h)/2;
+
+  artCtx.drawImage(img,x,y,w,h);
+  artCtx.fillStyle='#111827';
+  artCtx.font='bold 40px sans-serif';
+  artCtx.textAlign='center';
+  artCtx.fillText((name || 'Viewer').slice(0,28),775,570);
+
+  paintWallBase('');
+
+  const rows=[70,140,210,280,350,420,490,560];
+  const duration=450;
+  const totalPasses=Math.max(1,Number(times)||1);
+  let pass=0;
+  let row=0;
+  let started=performance.now();
+
+  ktmBrush.visible=true;
+
+  function animateReveal(now){
+   const progress=Math.min((now-started)/duration,1);
+   const yy=rows[row];
+   const endX=540+460*progress;
+
+   maskCtx.strokeStyle='#ffffff';
+   maskCtx.lineWidth=78;
+   maskCtx.lineCap='round';
+   maskCtx.beginPath();
+   maskCtx.moveTo(540,yy);
+   maskCtx.lineTo(endX,yy);
+   maskCtx.stroke();
+
+   revealCtx.clearRect(0,0,1024,640);
+   revealCtx.drawImage(artCanvas,0,0);
+   revealCtx.globalCompositeOperation='destination-in';
+   revealCtx.drawImage(maskCanvas,0,0);
+   revealCtx.globalCompositeOperation='source-over';
+
+   paintWallBase('');
+   paintCtx.drawImage(revealCanvas,0,0);
+   wallTexture.needsUpdate=true;
+
+   ktmBrush.position.x=-2.5+(endX/1024)*5;
+   ktmBrush.position.y=1.6-(yy/640)*3.2;
+   ktmBrush.position.z=-1.16;
+
+   if(progress<1){
+    requestAnimationFrame(animateReveal);
+    return;
+   }
+
+   row++;
+   if(row>=rows.length){
+    pass++;
+    row=0;
+   }
+
+   if(pass<totalPasses){
+    started=performance.now();
+    requestAnimationFrame(animateReveal);
+   }else{
+    ktmBrush.visible=false;
+    statusText.textContent='ছবি আঁকা সম্পূর্ণ হয়েছে!';
+   }
+  }
+
+  requestAnimationFrame(animateReveal);
+ };
+
+ img.onerror=function(){
+  statusText.textContent='ছবি দেয়ালে লোড হয়নি';
+ };
+
+ img.src=dataURL;
+};
+window.clearPaintingWall=function(){
+ paintWallBase('KTM LIVE PAINTING WALL');
+};
+
+
+
 const camera=new THREE.PerspectiveCamera(40,box.clientWidth/box.clientHeight,0.1,100);
 camera.position.set(0,1.5,4);
 
@@ -71,13 +242,52 @@ light.position.set(3,5,4);
 scene.add(light);
 
 const loader=new GLTFLoader();
+let artistModel=null;
+let animationUntil=0;
+
+let rightArm=null;
+let rightForeArm=null;
+let rightHand=null;
+
+let armBase=null;
+let foreArmBase=null;
+let handBase=null;
+window.playArtistAnimation=function(times){animationUntil=performance.now()+times*1400;};
 loader.load('ktm_artist.glb',gltf=>{
  const model=gltf.scene;
+ artistModel=model;
+
+model.traverse(obj=>{
+ if(obj.isBone){
+  if(obj.name==="mixamorig:RightArm"){
+   rightArm=obj;
+   armBase=obj.rotation.clone();
+  }
+  if(obj.name==="mixamorig:RightForeArm"){
+   rightForeArm=obj;
+   foreArmBase=obj.rotation.clone();
+  }
+  if(obj.name==="mixamorig:RightHand"){
+   rightHand=obj;
+   handBase=obj.rotation.clone();
+  }
+ }
+});
+
+console.log("KTM Right Arm Rig:",!!rightArm);
+console.log("KTM Right ForeArm Rig:",!!rightForeArm);
+console.log("KTM Right Hand Rig:",!!rightHand);
+
+document.getElementById('modelStatus').textContent =
+ "Arm: "+!!rightArm+
+ " | ForeArm: "+!!rightForeArm+
+ " | Hand: "+!!rightHand;
  const b=new THREE.Box3().setFromObject(model);
  const size=b.getSize(new THREE.Vector3());
  const center=b.getCenter(new THREE.Vector3());
 
  model.position.sub(center);
+ model.position.x -= 0.9;
  model.scale.setScalar(2.0/Math.max(size.y,0.001));
  scene.add(model);
 
@@ -88,19 +298,48 @@ loader.load('ktm_artist.glb',gltf=>{
  const halfFov=Math.min(vFov,hFov)/2;
  const distance=sphere.radius/Math.sin(halfFov)*1.35;
 
- camera.position.set(sphere.center.x,sphere.center.y,sphere.center.z+distance);
- camera.lookAt(sphere.center);
+ camera.position.set(0,sphere.center.y,sphere.center.z+distance*1.35);
+ camera.lookAt(0,sphere.center.y,sphere.center.z);
  camera.near=0.01;
  camera.far=Math.max(100,distance*10);
  camera.updateProjectionMatrix();
 
- document.getElementById('modelStatus').textContent='3D KTM Artist প্রস্তুত!';
+ document.getElementById('modelStatus').textContent =
+ 'Arm: '+!!rightArm+
+ ' | ForeArm: '+!!rightForeArm+
+ ' | Hand: '+!!rightHand;
 },undefined,error=>{
  document.getElementById('modelStatus').textContent='মডেল লোড হয়নি: '+error.message;
 });
 
 function animate(){
  requestAnimationFrame(animate);
+
+ if(artistModel){
+  const now=performance.now();
+  const active=now<animationUntil;
+  const power=active?1:0;
+  const stroke=Math.sin(now*0.012)*power;
+
+  artistModel.rotation.y = Math.PI;
+
+  if(rightArm && armBase){
+   rightArm.rotation.x=armBase.x+0.12*power+0.10*stroke;
+   rightArm.rotation.z=armBase.z+0.22*power+0.12*stroke;
+  }
+
+  if(rightForeArm && foreArmBase){
+   rightForeArm.rotation.x=foreArmBase.x+0.50*power+0.12*stroke;
+  }
+
+  if(rightHand && handBase){
+   rightHand.rotation.z=handBase.z-0.25*power-0.08*stroke;
+  }
+
+ }
+
+
+
  renderer.render(scene,camera);
 }
 animate();
@@ -137,12 +376,26 @@ function draw(times){
   return;
  }
  drawingCount+=times;
+ if(window.playArtistAnimation){
+  window.playArtistAnimation(times);
+ }
+ if(window.playBrushAnimation){
+  window.playBrushAnimation(times);
+ }
+ if(window.paintViewerOnWall){
+  window.paintViewerOnWall(
+   preview.src,
+   document.getElementById('viewerName').value || 'Viewer',
+   times
+  );
+ }
  document.getElementById('count').textContent='Drawing: '+drawingCount;
  statusText.textContent=times===3?'Gift: ৩ বার আঁকার নির্দেশ':'Follow: ১ বার আঁকার নির্দেশ';
  document.getElementById('drawing').textContent='🎨 ✏️';
 }
 
 function clearWall(){
+ if(window.clearPaintingWall) window.clearPaintingWall();
  preview.removeAttribute('src');
  preview.style.display='none';
  picker.value='';
