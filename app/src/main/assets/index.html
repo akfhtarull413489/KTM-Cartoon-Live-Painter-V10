@@ -57,42 +57,77 @@ const box=document.getElementById('viewer');
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x111827);
 
-// KTM LIVE PAINTING WALL
-const wallGeometry=new THREE.PlaneGeometry(5,3.2);
-const wallMaterial=new THREE.MeshStandardMaterial({
- color:0xffffff,
- roughness:0.95,
- side:THREE.DoubleSide
-});
-const paintingWall=new THREE.Mesh(wallGeometry,wallMaterial);
-paintingWall.position.set(0,0,-1.3);
-scene.add(paintingWall);
-window.paintingWall=paintingWall;
+// KTM LIVE PAINTING WALL PANELS
+const wallPanels=[];
+let activeWallPanel=null;
+let paintCanvas,paintCtx,wallTexture;
+function createWallPanel(index){
+ const canvas=document.createElement("canvas");
+ canvas.width=1024; canvas.height=640;
+ const ctx=canvas.getContext("2d");
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.95,side:THREE.DoubleSide,map:texture});
+ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(5,3.2),material);
+ mesh.position.set(0,0,-1.3-index*5);
+ scene.add(mesh);
+ const panel={mesh:mesh,canvas:canvas,ctx:ctx,texture:texture};
+ wallPanels[index]=panel;
+ activeWallPanel=panel;
+ paintCanvas=canvas; paintCtx=ctx; wallTexture=texture;
+ window.paintCanvas=canvas;
+ window.paintingWall=mesh;
+ return panel;
+}
+createWallPanel(0);
 
-// KTM 3D PAINT BRUSH
+// KTM 3D SPRAY GUN
 const ktmBrush = new THREE.Group();
-const brushHandle = new THREE.Mesh(
- new THREE.CylinderGeometry(0.035,0.045,0.65,12),
- new THREE.MeshStandardMaterial({color:0x8b4513,roughness:0.7})
-);
-brushHandle.rotation.z = -Math.PI/2;
-brushHandle.position.x = 0.32;
-ktmBrush.add(brushHandle);
 
-const brushTip = new THREE.Mesh(
- new THREE.ConeGeometry(0.065,0.22,12),
- new THREE.MeshStandardMaterial({color:0x222222})
+const canBody = new THREE.Mesh(
+ new THREE.CylinderGeometry(0.13,0.13,0.62,24),
+ new THREE.MeshStandardMaterial({color:0xffcc00,metalness:0.35,roughness:0.4})
 );
-brushTip.rotation.z = -Math.PI/2;
-brushTip.position.x = -0.08;
-ktmBrush.add(brushTip);
+canBody.rotation.z = -Math.PI/2;
+ktmBrush.add(canBody);
+
+const barrel = new THREE.Mesh(
+ new THREE.CylinderGeometry(0.055,0.075,0.35,16),
+ new THREE.MeshStandardMaterial({color:0x333333,metalness:0.65,roughness:0.3})
+);
+barrel.rotation.z = -Math.PI/2;
+barrel.position.x = -0.42;
+ktmBrush.add(barrel);
+
+const nozzle = new THREE.Mesh(
+ new THREE.ConeGeometry(0.075,0.16,16),
+ new THREE.MeshStandardMaterial({color:0x999999,metalness:0.7})
+);
+nozzle.rotation.z = Math.PI/2;
+nozzle.position.x = -0.65;
+ktmBrush.add(nozzle);
+
+const grip = new THREE.Mesh(
+ new THREE.BoxGeometry(0.16,0.34,0.13),
+ new THREE.MeshStandardMaterial({color:0x222222,roughness:0.6})
+);
+grip.position.set(0.12,-0.25,0);
+ktmBrush.add(grip);
+
+const trigger = new THREE.Mesh(
+ new THREE.TorusGeometry(0.09,0.018,8,16,Math.PI),
+ new THREE.MeshStandardMaterial({color:0xaaaaaa,metalness:0.7})
+);
+trigger.position.set(-0.12,-0.12,0);
+trigger.rotation.z = Math.PI;
+ktmBrush.add(trigger);
 
 ktmBrush.position.set(0.3,-1.0,-1.16);
 ktmBrush.visible = false;
-scene.add(ktmBrush);
 
 let brushStart = 0;
 let brushPasses = 0;
+
 window.ktmBrush = ktmBrush;
 
 window.playBrushAnimation = function(times){
@@ -100,17 +135,6 @@ window.playBrushAnimation = function(times){
  brushPasses = times;
  ktmBrush.visible = true;
 };
-
-
-window.paintCanvas=document.createElement('canvas');
-paintCanvas.width=1024;
-paintCanvas.height=640;
-const paintCtx=paintCanvas.getContext('2d');
-const wallTexture=new THREE.CanvasTexture(paintCanvas);
-wallTexture.colorSpace=THREE.SRGBColorSpace;
-wallMaterial.map=wallTexture;
-wallMaterial.color.set(0xffffff);
-wallMaterial.needsUpdate=true;
 
 function paintWallBase(name){
  paintCtx.fillStyle='#f4f4f4';
@@ -124,7 +148,7 @@ function paintWallBase(name){
 paintWallBase('KTM LIVE PAINTING WALL');
 
 
-window.paintViewerOnWall=function(dataURL,name,times){
+window.paintViewerOnWallNow=function(dataURL,name,times){
  const img=new Image();
 
  img.onload=function(){
@@ -189,9 +213,7 @@ window.paintViewerOnWall=function(dataURL,name,times){
    paintCtx.drawImage(revealCanvas,0,0);
    wallTexture.needsUpdate=true;
 
-   ktmBrush.position.x=-2.5+(endX/1024)*5;
-   ktmBrush.position.y=1.6-(yy/640)*3.2;
-   ktmBrush.position.z=-1.16;
+   // Spray gun stays attached to the artist's right hand.
 
    if(progress<1){
     requestAnimationFrame(animateReveal);
@@ -210,6 +232,7 @@ window.paintViewerOnWall=function(dataURL,name,times){
    }else{
     ktmBrush.visible=false;
     statusText.textContent='ছবি আঁকা সম্পূর্ণ হয়েছে!';
+    if(window.onWallPaintingDone)window.onWallPaintingDone();
    }
   }
 
@@ -218,9 +241,31 @@ window.paintViewerOnWall=function(dataURL,name,times){
 
  img.onerror=function(){
   statusText.textContent='ছবি দেয়ালে লোড হয়নি';
+  if(window.onWallPaintingDone)window.onWallPaintingDone();
  };
 
  img.src=dataURL;
+};
+const paintQueue=[];
+let nextWallIndex=1;
+let firstPanelAvailable=true;
+let paintingBusy=false;
+let pendingPaintJob=null;
+function runNextPainting(){
+ if(paintQueue.length===0){paintingBusy=false;return;}
+ paintingBusy=true;
+ const job=paintQueue.shift();
+ if(firstPanelAvailable){firstPanelAvailable=false;}else{createWallPanel(nextWallIndex++);}
+ pendingPaintJob=job;
+ const targetZ=activeWallPanel.mesh.position.z+1.3;
+ if(window.moveArtistToPanel){window.moveArtistToPanel(targetZ);}
+ else{pendingPaintJob=null;window.paintViewerOnWallNow(job.dataURL,job.name,job.times);}
+}
+window.onWallPaintingDone=function(){runNextPainting();};
+window.paintViewerOnWall=function(dataURL,name,times){
+ paintQueue.push({dataURL:dataURL,name:name,times:times});
+ statusText.textContent='Queue-তে '+paintQueue.length+'টি ছবি অপেক্ষা করছে';
+ if(!paintingBusy)runNextPainting();
 };
 window.clearPaintingWall=function(){
  paintWallBase('KTM LIVE PAINTING WALL');
@@ -253,6 +298,9 @@ let armBase=null;
 let foreArmBase=null;
 let handBase=null;
 window.playArtistAnimation=function(times){animationUntil=performance.now()+times*1400;};
+let artistTargetZ=null;
+let cameraFollowDistance=4;
+window.moveArtistToPanel=function(z){artistTargetZ=z;};
 loader.load('ktm_artist.glb',gltf=>{
  const model=gltf.scene;
  artistModel=model;
@@ -274,6 +322,13 @@ model.traverse(obj=>{
  }
 });
 
+if(rightHand){
+ rightHand.add(ktmBrush);
+ ktmBrush.position.set(0.02,0.02,0.02);
+ ktmBrush.rotation.set(0,0,0);
+ ktmBrush.scale.setScalar(0.35);
+}
+console.log("KTM Spray Gun attached:",!!rightHand);
 console.log("KTM Right Arm Rig:",!!rightArm);
 console.log("KTM Right ForeArm Rig:",!!rightForeArm);
 console.log("KTM Right Hand Rig:",!!rightHand);
@@ -297,6 +352,7 @@ document.getElementById('modelStatus').textContent =
  const hFov=2*Math.atan(Math.tan(vFov/2)*camera.aspect);
  const halfFov=Math.min(vFov,hFov)/2;
  const distance=sphere.radius/Math.sin(halfFov)*1.35;
+ cameraFollowDistance=distance*1.35;
 
  camera.position.set(0,sphere.center.y,sphere.center.z+distance*1.35);
  camera.lookAt(0,sphere.center.y,sphere.center.z);
@@ -317,11 +373,27 @@ function animate(){
 
  if(artistModel){
   const now=performance.now();
-  const active=now<animationUntil;
+  const moving=artistTargetZ!==null;
+  const active=moving||now<animationUntil;
   const power=active?1:0;
   const stroke=Math.sin(now*0.012)*power;
 
   artistModel.rotation.y = Math.PI;
+  artistModel.position.y=moving?0.04+Math.abs(Math.sin(now*0.018))*0.06:0;
+  if(artistTargetZ!==null){
+   artistModel.position.z+=(artistTargetZ-artistModel.position.z)*0.06;
+   if(Math.abs(artistTargetZ-artistModel.position.z)<0.08){
+    artistModel.position.z=artistTargetZ;
+    artistTargetZ=null;
+    if(pendingPaintJob){
+     const job=pendingPaintJob;
+     pendingPaintJob=null;
+     window.paintViewerOnWallNow(job.dataURL,job.name,job.times);
+    }
+   }
+  }
+  camera.position.set(artistModel.position.x,artistModel.position.y+1.1,artistModel.position.z+cameraFollowDistance);
+  camera.lookAt(artistModel.position.x,artistModel.position.y+0.5,artistModel.position.z-1.5);
 
   if(rightArm && armBase){
    rightArm.rotation.x=armBase.x+0.12*power+0.10*stroke;
